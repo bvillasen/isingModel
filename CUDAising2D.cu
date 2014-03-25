@@ -11,8 +11,8 @@ texture<int, cudaTextureType2D, cudaReadModeElementType> tex_spinsIn;
 ////////////////////////////////////////////////////////////////////////
 
 
-__device__ int deltaEnergy( int nWidth, int nHeight, int t_i, int t_j ){
-  int center = tex2D( tex_spinsIn, t_j, t_i );
+__device__ int deltaEnergy( int center, int nWidth, int nHeight, int t_i, int t_j ){
+//   int center = tex2D( tex_spinsIn, t_j, t_i );
   int left   = tex2D( tex_spinsIn, t_j-1, t_i );
   int right  = tex2D( tex_spinsIn, t_j+1, t_i );
   int up     = tex2D( tex_spinsIn, t_j, t_i+1 );
@@ -27,8 +27,8 @@ __device__ int deltaEnergy( int nWidth, int nHeight, int t_i, int t_j ){
   return 2*center*(up + down + right + left );
 }
 
-__device__ int getSpinEnergy( int nWidth, int nHeight, int t_i, int t_j ){
-  int center = tex2D( tex_spinsIn, t_j, t_i );
+__device__ int getSpinEnergy( int center, int nWidth, int nHeight, int t_i, int t_j ){
+//   int center = tex2D( tex_spinsIn, t_j, t_i );
   int left   = tex2D( tex_spinsIn, t_j-1, t_i );
   int right  = tex2D( tex_spinsIn, t_j+1, t_i );
   int up     = tex2D( tex_spinsIn, t_j, t_i-1 );
@@ -47,78 +47,20 @@ __device__ bool metropolisAccept( int tid, float beta, int deltaE, float *random
   float random = randomNumbers[tid];
   float val = exp(-1*beta*deltaE);
 
-  if (deltaE<=0) return true;
-  if (random < val) return true;
+  if ( deltaE <= 0 ) return true;
+  if ( random < val ) return true;
   return false;
 }
 
 __global__ void ising_kernel( int paridad,  int nWidth, int nHeight, float beta, 
 			      int *spinsOut, float *randomNumbers ){
-  int t_j = blockIdx.x*blockDim.x + threadIdx.x;
+  int t_j = 2*(blockIdx.x*blockDim.x + threadIdx.x);
   int t_i = blockIdx.y*blockDim.y + threadIdx.y;
-  int tid = t_j + t_i*blockDim.x*gridDim.x;
-  
-  int deltaE = deltaEnergy( nWidth, nHeight, t_i, t_j );
+  if ( t_i%2 == paridad ) t_j +=1;
+  int tid = t_j + t_i*nWidth;
+
   int currentSpin = tex2D( tex_spinsIn, t_j, t_i );
-  if ( (t_i+t_j)%2 == paridad ){
-    if (metropolisAccept(tid, beta, deltaE, randomNumbers)) spinsOut[tid] = -1*currentSpin; 
-    //else spinsOut[tid] = currentSpin;
-  }
+  int deltaE = deltaEnergy( currentSpin, nWidth, nHeight, t_i, t_j );
+  if (metropolisAccept(tid, beta, deltaE, randomNumbers)) spinsOut[tid] = -1*currentSpin; 
 //   if (saveEnergy) spinsEnergies[tid] = getSpinEnergy( nWidth, nHeight, t_i, t_j );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
