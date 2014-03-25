@@ -11,9 +11,9 @@ texture< int, cudaTextureType3D, cudaReadModeElementType>tex_spinsIn;
 ////////////////////////////////////////////////////////////////////////
 
 
-__device__ int deltaEnergy( int nWidth, int nHeight, int nDepth, int t_i, int t_j, int t_k ){
-  int center, right, left, up, down, top, bottom;
-  center = tex3D(tex_spinsIn, (float)t_j, (float)t_i, (float)t_k);
+__device__ int deltaEnergy( int center, int nWidth, int nHeight, int nDepth, int t_i, int t_j, int t_k ){
+  int right, left, up, down, top, bottom;
+//   center = tex3D(tex_spinsIn, (float)t_j, (float)t_i, (float)t_k);
   up =     tex3D(tex_spinsIn, (float)t_j, (float)t_i+1, (float)t_k);
   down =   tex3D(tex_spinsIn, (float)t_j, (float)t_i-1, (float)t_k);
   right =  tex3D(tex_spinsIn, (float)t_j+1, (float)t_i, (float)t_k);
@@ -59,17 +59,22 @@ __device__ bool metropolisAccept( int tid, float beta, int deltaE, float *random
 
 __global__ void ising_kernel( int paridad,  int nWidth, int nHeight, int nDepth, float beta, 
 			      int *spinsOut, float *randomNumbers ){
-  int t_j = blockIdx.x*blockDim.x + threadIdx.x;
+  int t_j = 1*(blockIdx.x*blockDim.x + threadIdx.x);
   int t_i = blockIdx.y*blockDim.y + threadIdx.y;
   int t_k = blockIdx.z*blockDim.z + threadIdx.z;
-  int tid = t_j + t_i*blockDim.x*gridDim.x + t_k*blockDim.x*gridDim.x*blockDim.y*gridDim.y;
+//   if ( t_i%2 == paridad ){
+//     if ( t_k%2 == paridad ) t_j +=1;
+//   } else{
+//     if ( (t_k+1)%2 == paridad ) t_j +=1;
+//   }
+  int tid = t_j + t_i*nWidth + t_k*nWidth*blockDim.y*gridDim.y;
 
-  int deltaE = deltaEnergy( nWidth, nHeight, nDepth, t_i, t_j, t_k );
   int currentSpin = tex3D( tex_spinsIn, (float)t_j, (float)t_i, (float)t_k );
-  if ( (t_i+ t_j + t_k)%2 == paridad ){
+  int deltaE = deltaEnergy( currentSpin, nWidth, nHeight, nDepth, t_i, t_j, t_k );
+  if ( (t_i+ t_j + t_k)%2 == paridad )
     if (metropolisAccept(tid, beta, deltaE, randomNumbers)) spinsOut[tid] = -1*currentSpin; 
     //else spinsOut[tid] = currentSpin;
-  }
+//   }
 //   if (saveEnergy) spinsEnergies[tid] = getSpinEnergy( nWidth, nHeight, t_i, t_j );
 }
 
