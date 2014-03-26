@@ -1,11 +1,11 @@
 // #include <pycuda-complex.hpp>
-// #include <surface_functions.h>
+#include <surface_functions.h>
 #include <stdint.h>
 #include <cuda.h>
 
 
-texture< int, cudaTextureType3D, cudaReadModeElementType>tex_spinsIn;
-//surface<void, 2> surf_out;
+texture< int, cudaTextureType3D, cudaReadModeElementType> tex_spinsIn;
+surface< void, cudaSurfaceType3D> surf_spinsOut;
 
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
@@ -58,24 +58,38 @@ __device__ bool metropolisAccept( int tid, float beta, int deltaE, float *random
 }
 
 __global__ void ising_kernel( int paridad,  int nWidth, int nHeight, int nDepth, float beta, 
-			      int *spinsOut, float *randomNumbers ){
-  int t_j = 1*(blockIdx.x*blockDim.x + threadIdx.x);
+			      int *spinsOut, float *randomNumbers, 
+			      float *plotData, float upVal, float downVal ){
+  int t_j = 2*(blockIdx.x*blockDim.x + threadIdx.x);
   int t_i = blockIdx.y*blockDim.y + threadIdx.y;
   int t_k = blockIdx.z*blockDim.z + threadIdx.z;
-//   if ( t_i%2 == paridad ){
-//     if ( t_k%2 == paridad ) t_j +=1;
-//   } else{
-//     if ( (t_k+1)%2 == paridad ) t_j +=1;
-//   }
+
+  if ( t_i%2 == 0 ){
+    if ( (t_k)%2 == paridad ) t_j +=1;
+  } 
+  else{
+    if ( (t_k+1)%2 == paridad ) t_j +=1;
+  }
+  
   int tid = t_j + t_i*nWidth + t_k*nWidth*blockDim.y*gridDim.y;
 
   int currentSpin = tex3D( tex_spinsIn, (float)t_j, (float)t_i, (float)t_k );
   int deltaE = deltaEnergy( currentSpin, nWidth, nHeight, nDepth, t_i, t_j, t_k );
-  if ( (t_i+ t_j + t_k)%2 == paridad )
-    if (metropolisAccept(tid, beta, deltaE, randomNumbers)) spinsOut[tid] = -1*currentSpin; 
-    //else spinsOut[tid] = currentSpin;
-//   }
+//   if ( (t_i+ t_j + t_k)%2 == paridad )
+  if (metropolisAccept(tid, beta, deltaE, randomNumbers)) currentSpin *= -1;
+  
+  surf3Dwrite(  currentSpin, surf_spinsOut,  t_j*sizeof(int), t_i, t_k,  cudaBoundaryModeClamp);
+//   if ( paridad == 0 ) surf3Dwrite(  currentSpin, surf_spinsOut,  t_j*sizeof(int), t_i, t_k,  cudaBoundaryModeClamp);
+//   if ( paridad == 1 ) spinsOut[tid] = currentSpin;
+//     else spinsOut[tid] = currentSpin;
 //   if (saveEnergy) spinsEnergies[tid] = getSpinEnergy( nWidth, nHeight, t_i, t_j );
+  
+
+  float plotVal;
+  if (currentSpin == 1 ) plotVal = upVal;
+  if (currentSpin == -1 ) plotVal = downVal;
+  plotData[tid] = plotVal;
+
 }
 
 

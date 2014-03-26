@@ -26,7 +26,7 @@ sys.path.extend( [toolsDirectory, volumeRenderDirectory] )
 import volumeRender
 from cudaTools import setCudaDevice, getFreeMemory, gpuArray3DtocudaArray
 
-nPoints = 128*2
+nPoints = 256
 useDevice = None
 for option in sys.argv:
   #if option == "128" or option == "256": nPoints = int(option)
@@ -41,7 +41,9 @@ nData = nWidth*nHeight*nDepth
 temp = 1.
 beta = np.float32( 1./temp)
 
-
+plotVar = 1
+upVal = 0.7
+downVal = 0.4
 
 #Initialize openGL
 volumeRender.nWidth = nWidth
@@ -69,6 +71,7 @@ cudaCodeString_raw = open("CUDAising3D.cu", "r").read()
 cudaCodeString = cudaCodeString_raw # % { "BLOCK_WIDTH":block2D[0], "BLOCK_HEIGHT":block2D[1], "BLOCK_DEPTH":block2D[2], }
 cudaCode = SourceModule(cudaCodeString)
 tex_spins = cudaCode.get_texref('tex_spinsIn')
+surf_spins = cudaCode.get_surfref("surf_spinsOut")
 isingKernel = cudaCode.get_function('ising_kernel')
 ########################################################################
 from pycuda.elementwise import ElementwiseKernel
@@ -80,7 +83,8 @@ floatToUchar = ElementwiseKernel(arguments="float *input, unsigned char *output"
 				operation = "output[i] = (unsigned char) ( -255*(input[i]-1));")
 ########################################################################
 def sendToScreen( plotData ):
-  changeIntToFloat( np.float32(0.3), np.float32(0.5), plotData, plotDataFloat_d )
+  #changeIntToFloat( np.float32(0.3), np.float32(0.5), plotData, plotDataFloat_d )
+  #changeIntToFloat( np.float32(0.8), np.float32(0.), plotData, plotDataFloat_d )
   floatToUchar( plotDataFloat_d, plotData_d )
   copyToScreenArray()
 ########################################################################
@@ -89,28 +93,45 @@ def swipe():
   stepNumber = np.int32(0)
   #saveEnergy = np.int32(0)
   tex_spins.set_array( spinsInArray_d )
+  surf_spins.set_array( spinsInArray_d )
   isingKernel( stepNumber, np.int32(nWidth), np.int32(nHeight), np.int32(nDepth), beta, 
-	       spinsOut_d, randomNumbers_d, grid=grid3D, block=block3D )
-  copy3D_dtod() 
+	       spinsOut_d, randomNumbers_d, 
+	       plotDataFloat_d, np.float32(upVal), np.float32(downVal), grid=grid3D_ising, block=block3D )
+  #copy3D_dtod() 
 
   stepNumber = np.int32(1)
   #saveEnergy = np.int32(0)
   tex_spins.set_array( spinsInArray_d )
+  surf_spins.set_array( spinsInArray_d )
   isingKernel( stepNumber, np.int32(nWidth), np.int32(nHeight), np.int32(nDepth), beta,
-	       spinsOut_d, randomNumbers_d, grid=grid3D, block=block3D )
-  copy3D_dtod()
+	       spinsOut_d, randomNumbers_d, 
+	       plotDataFloat_d, np.float32(upVal), np.float32(downVal), grid=grid3D_ising, block=block3D )
+  #copy3D_dtod()
 ########################################################################
 def stepFunction():
   sendToScreen( spinsOut_d )
   [swipe() for i in range(1)]
 ########################################################################
+def changePlotting():
+  global upVal, downVal
+  if plotVar == 1: upVal, downVal = 0.7, 0.4
+  if plotVar == 2: upVal, downVal = 0.7, 100.
+  if plotVar == 3: upVal, downVal = 0, 0.4
+########################################################################
 def specialKeyboardFunc( key, x, y ):
-  global temp, beta
+  global temp, beta, plotVar
   if key== volumeRender.GLUT_KEY_UP:
     temp += 0.1
   if key== volumeRender.GLUT_KEY_DOWN:
     if temp > 0.1: temp -= 0.1
+  if key== volumeRender.GLUT_KEY_RIGHT:
+    plotVar += 1
+    if plotVar == 4: plotVar = 1
+  if key== volumeRender.GLUT_KEY_LEFT:
+    plotVar -= 1
+    if plotVar == 0: plotVar = 3    
   beta = np.float32(1./temp)
+  changePlotting()
   volumeRender.windowTitle = "Ising3D   spins={0}x{1}x{2}    T={3:.1f}".format(nHeight, nWidth, nDepth, float(temp))
 ########################################################################
 ########################################################################
@@ -119,10 +140,11 @@ print "\nInitializing Data"
 initialMemory = getFreeMemory( show=True )  
 #Set initial random distribution
 spins_h = (2*np.random.random_integers(0,1,[nDepth, nHeight, nWidth ]) - 1 ).astype(np.int32)
+#spins_h = np.ones([nDepth, nHeight, nWidth ]).astype(np.int32)
 spinsOut_d = gpuarray.to_gpu( spins_h )
 randomNumbers_d = curandom.rand((nData))
 #For texture version
-spinsInArray_d, copy3D_dtod = gpuArray3DtocudaArray( spinsOut_d )
+spinsInArray_d, copy3D_dtod = gpuArray3DtocudaArray( spinsOut_d, allowSurfaceBind=True )
 #For shared version
 #memory for plotting
 plotDataFloat_d = gpuarray.to_gpu(np.zeros_like(spins_h))
@@ -135,6 +157,9 @@ print " Total Global Memory Used: {0} Mbytes\n".format(float(initialMemory-final
 #configure volumeRender functions 
 volumeRender.stepFunc = stepFunction
 volumeRender.specialKeys = specialKeyboardFunc
+
+
+#stepFunction()
 
 #run volumeRender animation
 volumeRender.animate()
