@@ -122,9 +122,9 @@ animation2D.plotData_d = spinsOut_d
 animation2D.maxVar = np.float32(2)
 animation2D.minVar = np.float32(-20)
 
-stepFunction()
+#stepFunction()
 
 #run animation
-#animation2D.animate()
+animation2D.animate()
 
 
