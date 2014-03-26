@@ -66,8 +66,6 @@ tex_spins = cudaCode.get_texref('tex_spinsIn')
 isingKernel = cudaCode.get_function('ising_kernel')
 ########################################################################
 def sendToScreen( plotData ):
-  #maxVal = gpuarray.max(plotData).get() + 0.00005
-  #multiplyByFloat( 1./maxVal, plotData )
   floatToUchar( plotData, plotData_d )
   copyToScreenArray()
 ########################################################################
@@ -124,7 +122,9 @@ animation2D.plotData_d = spinsOut_d
 animation2D.maxVar = np.float32(2)
 animation2D.minVar = np.float32(-20)
 
+stepFunction()
+
 #run animation
-animation2D.animate()
+#animation2D.animate()
 
 
