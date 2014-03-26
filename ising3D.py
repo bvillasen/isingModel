@@ -77,14 +77,14 @@ isingKernel = cudaCode.get_function('ising_kernel')
 from pycuda.elementwise import ElementwiseKernel
 ########################################################################
 changeIntToFloat = ElementwiseKernel(arguments="float a, float b, int *input, float *output",
-			      operation = "output[i] = a*input[i] + b;")
+			      operation = "output[i] = a*input[i] + b;",
+			      name = "intToFloat_kernel")
 ########################################################################
 floatToUchar = ElementwiseKernel(arguments="float *input, unsigned char *output",
-				operation = "output[i] = (unsigned char) ( -255*(input[i]-1));")
+				operation = "output[i] = (unsigned char) ( -255*(input[i]-1));",
+				name = "floatToUchar_kernel")
 ########################################################################
 def sendToScreen( plotData ):
-  #changeIntToFloat( np.float32(0.3), np.float32(0.5), plotData, plotDataFloat_d )
-  #changeIntToFloat( np.float32(0.8), np.float32(0.), plotData, plotDataFloat_d )
   floatToUchar( plotDataFloat_d, plotData_d )
   copyToScreenArray()
 ########################################################################
