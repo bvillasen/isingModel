@@ -10,7 +10,7 @@
 #                               https://github.com/bvillasen/tools
 import sys, time, os
 import numpy as np
-import pylab as plt
+#import pylab as plt
 import pycuda.driver as cuda
 from pycuda.compiler import SourceModule
 import pycuda.gpuarray as gpuarray
@@ -38,7 +38,7 @@ nHeight = nPoints
 nDepth = nPoints
 nData = nWidth*nHeight*nDepth
 
-temp = 1.
+temp = 2.
 beta = np.float32( 1./temp)
 
 plotVar = 1
@@ -63,6 +63,7 @@ grid3D_ising = (gridx//2, gridy, gridz)
 
 
 #initialize pyCUDA context 
+
 cudaDevice = setCudaDevice( devN=useDevice, usingAnimation=True )
 
 #Read and compile CUDA code
@@ -71,7 +72,7 @@ cudaCodeString_raw = open("CUDAising3D.cu", "r").read()
 cudaCodeString = cudaCodeString_raw # % { "BLOCK_WIDTH":block2D[0], "BLOCK_HEIGHT":block2D[1], "BLOCK_DEPTH":block2D[2], }
 cudaCode = SourceModule(cudaCodeString)
 tex_spins = cudaCode.get_texref('tex_spinsIn')
-surf_spins = cudaCode.get_surfref("surf_spinsOut")
+surf_spins = cudaCode.get_surfref('surf_spinsOut')
 isingKernel = cudaCode.get_function('ising_kernel')
 ########################################################################
 from pycuda.elementwise import ElementwiseKernel
@@ -110,7 +111,7 @@ def swipe():
 ########################################################################
 def stepFunction():
   sendToScreen( spinsOut_d )
-  [swipe() for i in range(1)]
+  swipe() 
 ########################################################################
 def changePlotting():
   global upVal, downVal

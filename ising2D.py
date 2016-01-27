@@ -10,7 +10,7 @@
 #                               https://github.com/bvillasen/tools
 import sys, time, os
 import numpy as np
-import pylab as plt
+#import pylab as plt
 import pycuda.driver as cuda
 from pycuda.compiler import SourceModule
 import pycuda.gpuarray as gpuarray
