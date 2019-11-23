@@ -23,11 +23,11 @@ toolsDirectory = parentDirectory + "/tools"
 volumeRenderDirectory = parentDirectory + "/volumeRender"
 sys.path.extend( [toolsDirectory, volumeRenderDirectory] )
 
-import volumeRender
+import volumeRender_old as volumeRender
 from cudaTools import setCudaDevice, getFreeMemory, gpuArray3DtocudaArray
 
-nPoints = 256
-useDevice = None
+nPoints = 512
+useDevice = 0
 for option in sys.argv:
   #if option == "128" or option == "256": nPoints = int(option)
   if option.find("device=") != -1: useDevice = int(option[-1]) 
@@ -38,7 +38,7 @@ nHeight = nPoints
 nDepth = nPoints
 nData = nWidth*nHeight*nDepth
 
-temp = 2.
+temp = 3
 beta = np.float32( 1./temp)
 
 plotVar = 1
